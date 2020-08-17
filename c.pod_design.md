@@ -48,7 +48,7 @@ kubectl label po nginx2 app=v2 --overwrite
 <p>
 
 ```bash
-kubectl get po -L app
+kubectl get po -l app
 # or
 kubectl get po --label-columns=app
 ```
@@ -82,7 +82,7 @@ kubectl label po nginx1 nginx2 nginx3 app-
 # or
 kubectl label po nginx{1..3} app-
 # or
-kubectl label po -lapp app-
+kubectl label po -l app app-
 ```
 
 </p>
@@ -92,6 +92,13 @@ kubectl label po -lapp app-
 
 <details><summary>show</summary>
 <p>
+
+Add the label to a node:
+
+```bash
+kubectl label nodes <your-node-name> accelerator=nvidia-tesla-p100
+kubectl get nodes --show-labels
+```
 
 We can use the 'nodeSelector' property on the Pod YAML:
 
@@ -112,6 +119,28 @@ You can easily find out where in the YAML it should be placed by:
 
 ```bash
 kubectl explain po.spec
+```
+
+OR:
+Use node affinity (https://kubernetes.io/docs/tasks/configure-pod-container/assign-pods-nodes-using-node-affinity/#schedule-a-pod-using-required-node-affinity)
+
+```YAML
+apiVersion: v1
+kind: Pod
+metadata:
+  name: affinity-pod
+spec:
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: accelerator
+            operator: In
+            values:
+            - nvidia-tesla-p100
+  containers:
+    ...
 ```
 
 </p>
@@ -141,9 +170,13 @@ kubectl annotate po nginx{1..3} description='my description'
 
 ```bash
 kubectl describe po nginx1 | grep -i 'annotations'
+
+# or
+
+kubectl get pods -o custom-columns=Name:metadata.name,ANNOTATIONS:metadata.annotations.description
 ```
 
-As an alternative to using `| grep` you can use jsonPath like `kubectl get po nginx -o jsonpath='{.metadata.annotations}{"\n"}'`
+As an alternative to using `| grep` you can use jsonPath like `kubectl get po nginx1 -o jsonpath='{.metadata.annotations}{"\n"}'`
 
 </p>
 </details>
@@ -451,12 +484,6 @@ kubectl delete deploy/nginx hpa/nginx
 <p>
 
 ```bash
-kubectl run pi --image=perl --restart=OnFailure -- perl -Mbignum=bpi -wle 'print bpi(2000)'
-```
-
-**However**, `kubectl run` for Job is Deprecated and will be removed in a future version. What you can do is:
-
-```bash
 kubectl create job pi  --image=perl -- perl -Mbignum=bpi -wle 'print bpi(2000)'
 ```
 
@@ -482,12 +509,6 @@ kubectl delete job pi
 
 <details><summary>show</summary>
 <p>
-
-```bash
-kubectl run busybox --image=busybox --restart=OnFailure -- /bin/sh -c 'echo hello;sleep 30;echo world'
-```
-
-**However**, `kubectl run` for Job is Deprecated and will be removed in a future version. What you can do is:
 
 ```bash
 kubectl create job busybox --image=busybox -- /bin/sh -c 'echo hello;sleep 30;echo world'
@@ -541,7 +562,7 @@ kubectl delete job busybox
 <p>
   
 ```bash
-kubectl create job busybox --image=busybox --dry-run -o yaml -- /bin/sh -c 'while true; do echo hello; sleep 10;done' > job.yaml
+kubectl create job busybox --image=busybox --dry-run=client -o yaml -- /bin/sh -c 'while true; do echo hello; sleep 10;done' > job.yaml
 vi job.yaml
 ```
   
@@ -583,7 +604,7 @@ status: {}
 <p>
 
 ```bash
-kubectl create job busybox --image=busybox --dry-run -o yaml -- /bin/sh -c 'echo hello;sleep 30;echo world' > job.yaml
+kubectl create job busybox --image=busybox --dry-run=client -o yaml -- /bin/sh -c 'echo hello;sleep 30;echo world' > job.yaml
 vi job.yaml
 ```
 
@@ -694,12 +715,6 @@ kubernetes.io > Documentation > Tasks > Run Jobs > [Running Automated Tasks with
 <p>
 
 ```bash
-kubectl run busybox --image=busybox --restart=OnFailure --schedule="*/1 * * * *" -- /bin/sh -c 'date; echo Hello from the Kubernetes cluster'
-```
-
-**However**, `kubectl run` for CronJob is Deprecated and will be removed in a future version. What you can do is:
-
-```bash
 kubectl create cronjob busybox --image=busybox --schedule="*/1 * * * *" -- /bin/sh -c 'date; echo Hello from the Kubernetes cluster'
 ```
 
@@ -723,13 +738,13 @@ kubectl delete cj busybox
 </p>
 </details>
 
-### Create a cron job with image busybox that runs every minutes and writes 'date; echo Hello from the Kubernetes cluster' to standard output. The cron job should be terminated if it takes more than 17 seconds to execute.
+### Create a cron job with image busybox that runs every minutes and writes 'date; echo Hello from the Kubernetes cluster' to standard output. The cron job should be terminated if it takes more than 17 seconds to start execution after its schedule.
 
 <details><summary>show</summary>
 <p>
 
 ```bash
-kubectl create cronjob time-limited-job --image=busybox --restart=Never --dry-run --schedule="* * * * *" -o yaml -- /bin/sh -c 'date; echo Hello from the Kubernetes cluster' > time-limited-job.yaml
+kubectl create cronjob time-limited-job --image=busybox --restart=Never --dry-run=client --schedule="* * * * *" -o yaml -- /bin/sh -c 'date; echo Hello from the Kubernetes cluster' > time-limited-job.yaml
 vi time-limited-job.yaml
 ```
 Add job.spec.activeDeadlineSeconds=17
